@@ -1,0 +1,105 @@
+<link rel="import" href="../polymer/polymer-element.html">
+<link rel="import" href="../paper-input/paper-input.html">
+<link rel="import" href="../iron-ajax/iron-ajax.html">
+<link rel="import" href="../paper-button/paper-button.html">
+
+<dom-module id="upload-component">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+      <iron-ajax
+      id="uploadRequest"
+      method="post",
+      url="[[requestFileUrl]]"
+      on-response="uploadedSong"
+      on-error="errorUploading"
+      >
+      </iron-ajax>
+
+      <iron-ajax
+      id="songDbRequest"
+      method="post"
+      handle-as="json"
+      content-type="application/json"
+      url="[[requestDbUrl]]"
+      body="[[songObject]]"
+      on-response="savedSong"
+      on-error="errorSaving"
+      >
+
+      </iron-ajax>
+
+      <paper-input type="text" label="Song display name" value="{{songObject.songName}}"></paper-input>
+      <paper-input type="text" label="Artist name" value="{{songObject.songArtist}}"></paper-input>
+        <paper-input type="file" id="fileUpload" on-change="inputChanges" encType="multipart/form-data" accept=".mp3"></paper-input>
+        <paper-button on-tap="saveSong">Save Song</paper-button>
+  </template>
+
+  <script>
+    /**
+     * `upload-component`
+     * 
+     *
+     * @customElement
+     * @polymer
+     * @demo demo/index.html
+     */
+    class UploadComponent extends Polymer.Element {
+      static get is() { return 'upload-component'; }
+      static get properties() {
+        return {
+          requestFileUrl:{
+            type:String,
+            value:"http://localhost:8000/tracks"
+          },
+          requestDbUrl:{
+            type:String,
+            value:"http://localhost:8000/song"
+          },
+          files:{
+            type:Object,
+            value:{}
+          },
+          formData:{
+            type:Object
+          },
+          songObject:{
+            type:Object,
+            value(){
+              return {
+                songName:"",
+                songArtist:"",
+                songUrl:""
+              }
+            }
+          }
+        };
+      }
+
+      inputChanges(event){
+        this.set("files",this.$.fileUpload.inputElement.inputElement.files)
+        console.log(this.$.fileUpload.inputElement.inputElement.files[0].name);
+        for(const song of this.files){
+        this.formData=new FormData();
+          this.formData.append("song",song);
+          this.$.uploadRequest.body=this.formData;
+        }
+      }
+
+      uploadedSong(event){
+        this.set("songObject.songUrl",event.detail.response.file);
+        this.$.songDbRequest.generateRequest();
+      }
+
+      saveSong(){
+        this.$.uploadRequest.generateRequest();  
+      }
+
+    }
+
+    window.customElements.define(UploadComponent.is, UploadComponent);
+  </script>
+</dom-module>
