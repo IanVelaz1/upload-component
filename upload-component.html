@@ -2,6 +2,7 @@
 <link rel="import" href="../paper-input/paper-input.html">
 <link rel="import" href="../iron-ajax/iron-ajax.html">
 <link rel="import" href="../paper-button/paper-button.html">
+<link rel="import" href="../polymer/lib/elements/dom-repeat.html">
 
 <dom-module id="upload-component">
   <template>
@@ -9,33 +10,42 @@
       :host {
         display: block;
       }
+      .listElement {
+                transition: 0.2s;
+            }
+
+            .listElement:hover {
+                background-color: black;
+                color: white;
+                cursor: pointer;
+            }
     </style>
-      <iron-ajax
-      id="uploadRequest"
-      method="post",
-      url="[[requestFileUrl]]"
-      on-response="uploadedSong"
-      on-error="errorUploading"
-      >
-      </iron-ajax>
+    <iron-ajax id="uploadRequest" method="post" , url="[[requestFileUrl]]" on-response="uploadedSong" on-error="errorUploading">
+    </iron-ajax>
 
-      <iron-ajax
-      id="songDbRequest"
-      method="post"
-      handle-as="json"
-      content-type="application/json"
-      url="[[requestDbUrl]]"
-      body="[[songObject]]"
-      on-response="savedSong"
-      on-error="errorSaving"
-      >
+    <iron-ajax id="songDbRequest" method="post" handle-as="json" content-type="application/json" url="[[requestDbUrl]]" on-response="savedSong" on-error="errorSaving">
 
-      </iron-ajax>
+    </iron-ajax>
 
-      <paper-input type="text" label="Song display name" value="{{songObject.songName}}"></paper-input>
-      <paper-input type="text" label="Artist name" value="{{songObject.songArtist}}"></paper-input>
-        <paper-input type="file" id="fileUpload" on-change="inputChanges" encType="multipart/form-data" accept=".mp3"></paper-input>
-        <paper-button on-tap="saveSong">Save Song</paper-button>
+    <paper-input type="text" label="Song display name" value="{{songObject.songName}}"></paper-input>
+    <paper-input type="text" label="Artist name" value="{{songObject.songArtist.artistName}}"></paper-input>
+    <div class="listContainer">
+      <dom-repeat items="[[artistArray]]" as="artist" filter="{{filterArtist(songObject.songArtist.artistName)}}">
+        <template>
+          <p class="listElement" on-click="setArtist">[[artist.artistName]]</p>
+        </template>
+      </dom-repeat>
+    </div>
+    <paper-input type="text" label="Album name" value="{{songObject.songAlbum.albumName}}"></paper-input>
+    <div class="listContainer">
+      <dom-repeat items="[[albumArray]]" as="album" filter="{{filterAlbum(songObject.songAlbum.albumName)}}">
+        <template>
+          <p class="listElement" on-click="setAlbum">[[album.albumName]]</p>
+        </template>
+      </dom-repeat>
+    </div>
+    <paper-input type="file" id="fileUpload" on-change="inputChanges" encType="multipart/form-data" accept=".mp3"></paper-input>
+    <paper-button on-tap="saveSong">Save Song</paper-button>
   </template>
 
   <script>
@@ -48,54 +58,109 @@
      * @demo demo/index.html
      */
     class UploadComponent extends Polymer.Element {
-      static get is() { return 'upload-component'; }
+      static get is() {
+        return 'upload-component';
+      }
       static get properties() {
         return {
-          requestFileUrl:{
-            type:String,
-            value:"http://localhost:8000/tracks"
+          requestFileUrl: {
+            type: String,
+            value: ""
           },
-          requestDbUrl:{
-            type:String,
-            value:"http://localhost:8000/song"
+          requestDbUrl: {
+            type: String,
+            value: ""
           },
-          files:{
-            type:Object,
-            value:{}
+          files: {
+            type: Object,
+            value: {}
           },
-          formData:{
-            type:Object
+          formData: {
+            type: Object
           },
-          songObject:{
-            type:Object,
-            value(){
+          artistArray: {
+            type: Array,
+            value() {
+              return []
+            }
+          },
+          albumsArray: {
+            type: Array,
+            value() {
+              return []
+            }
+          },
+          songObject: {
+            type: Object,
+            value() {
               return {
-                songName:"",
-                songArtist:"",
-                songUrl:""
+                songName: "",
+                songArtist: {},
+                songUrl: "",
+                songAlbum: {}
               }
+            }
+          },
+          artistArray: {
+            type: Array,
+            value() {
+              return []
+            }
+          },
+          albumArray: {
+            type: Array,
+            value() {
+              return []
             }
           }
         };
       }
 
-      inputChanges(event){
-        this.set("files",this.$.fileUpload.inputElement.inputElement.files)
-        console.log(this.$.fileUpload.inputElement.inputElement.files[0].name);
-        for(const song of this.files){
-        this.formData=new FormData();
-          this.formData.append("song",song);
-          this.$.uploadRequest.body=this.formData;
+      filterArtist(artistName){
+        if(!artistName){
+          return null;
+        }else{
+          return function(artists){
+            return artists.artistName.includes(artistName);
+          }
         }
       }
 
-      uploadedSong(event){
-        this.set("songObject.songUrl",event.detail.response.file);
-        this.$.songDbRequest.generateRequest();
+      filterAlbum(albumName){
+        if(!albumName){
+          return null;
+        }else{
+          return function(albums){
+            return albums.albumName.includes(albumName);
+          }
+        }
       }
 
-      saveSong(){
-        this.$.uploadRequest.generateRequest();  
+      setArtist(event){
+        this.set("songObject.songArtist",event.model.__data.artist)
+      }
+
+      setAlbum(event){
+        this.set("songObject.songAlbum",event.model.__data.album);
+      }
+
+      inputChanges(event) {
+        this.set("files", this.$.fileUpload.inputElement.inputElement.files)
+        for (const song of this.files) {
+          this.formData = new FormData();
+          this.formData.append("song", song);
+          this.$.uploadRequest.body = this.formData;
+        }
+      }
+
+      uploadedSong(event) {
+        this.set("songObject.songUrl", event.detail.response.file);
+        this.$.songDbRequest.body=this.songObject;
+       this.$.songDbRequest.generateRequest();
+      }
+
+      saveSong() {
+        this.$.uploadRequest.generateRequest();
       }
 
     }
